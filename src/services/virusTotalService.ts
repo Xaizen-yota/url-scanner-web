@@ -1,61 +1,26 @@
 import axios from 'axios';
 import { keyManager } from './keyManagementService';
 
-const VIRUSTOTAL_API_URL = '/api/virustotal';
+const BACKEND_URL = 'http://localhost:3002';
 
 interface VirusTotalResponse {
-  response_code: number;
+  scan_id: string;
   verbose_msg: string;
-  scan_id?: string;
-  permalink?: string;
-  positives?: number;
-  total?: number;
-  scans?: Record<string, {
-    detected: boolean;
-    result: string;
-  }>;
+  response_code: number;
 }
 
-export const scanUrlWithVirusTotal = async (url: string): Promise<VirusTotalResponse & { usingBackupKey: boolean; remainingQuota: number }> => {
+export const scanUrlWithVirusTotal = async (url: string): Promise<VirusTotalResponse> => {
   try {
-    // First, submit URL for scanning
-    const scanResponse = await axios.post(`https://cors-anywhere.herokuapp.com/${VIRUSTOTAL_API_URL}/url/scan`, 
-      new URLSearchParams({
-        url: url,
-        apikey: import.meta.env.VITE_VIRUSTOTAL_API_KEY
-      }).toString(),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': window.location.origin
-        }
-      }
-    );
-
-    // Get the scan ID from the response
-    const scanId = scanResponse.data.scan_id;
-
-    // Wait for a few seconds to allow scanning to complete
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Then retrieve the scan results
-    const resultResponse = await axios.get(`https://cors-anywhere.herokuapp.com/${VIRUSTOTAL_API_URL}/url/report`, {
-      params: {
-        resource: scanId,
-        apikey: import.meta.env.VITE_VIRUSTOTAL_API_KEY
-      },
-      headers: {
-        'Origin': window.location.origin
-      }
+    console.log('Sending request to backend for URL:', url);
+    const response = await axios.post(`${BACKEND_URL}/api/virustotal`, { url });
+    console.log('Response from backend:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error scanning URL with VirusTotal:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
     });
-
-    return {
-      ...resultResponse.data,
-      usingBackupKey: keyManager.isUsingBackupKey('virusTotal'),
-      remainingQuota: keyManager.getRemainingQuota('virusTotal')
-    };
-  } catch (error) {
-    console.error('Error scanning URL with VirusTotal:', error);
-    throw new Error('Failed to scan URL with VirusTotal');
+    throw error;
   }
 };

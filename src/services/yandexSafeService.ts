@@ -1,31 +1,23 @@
 import axios from 'axios';
 
-const YANDEX_API_URL = '/api/yandex/check_url';
+const BACKEND_URL = 'http://localhost:3002';
 
-export const checkUrlWithYandex = async (url: string) => {
+interface YandexResponse {
+  matches?: Array<{
+    threatType: string;
+    platformType: string;
+    threat: { url: string };
+  }>;
+}
+
+export const checkUrlWithYandex = async (url: string): Promise<YandexResponse> => {
   try {
-    const response = await axios.get(`https://cors-anywhere.herokuapp.com/${YANDEX_API_URL}`, {
-      params: {
-        url: url,
-        apikey: import.meta.env.VITE_YANDEX_API_KEY
-      },
-      headers: {
-        'Origin': window.location.origin
-      }
-    });
-
-    return {
-      isSafe: !response.data.matches || response.data.matches.length === 0,
-      threats: response.data.matches || [],
-      raw: response.data
-    };
-  } catch (error) {
+    console.log('Sending request to backend for URL:', url);
+    const response = await axios.post(`${BACKEND_URL}/api/yandex`, { url });
+    console.log('Response from backend:', response.data);
+    return response.data;
+  } catch (error: any) {
     console.error('Error checking URL with Yandex:', error);
-    // Don't throw error, just return safe status as this is an additional check
-    return {
-      isSafe: true,
-      threats: [],
-      error: 'Service unavailable'
-    };
+    throw error;
   }
 };
